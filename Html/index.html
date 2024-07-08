@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script src="signalr.min.js"> </script>
+    <script src="jquery.min.js"> </script>
+
+    <script>
+        $(document).ready(() => {
+            const connection = new signalR.HubConnectionBuilder()
+            .withUrl("https://localhost:7123/messagehub")
+            .withAutomaticReconnect([1000,1000,2000]) // 0 - 2 - 10 - 30 -- baglanti var var lakin koptugu zaman kullanilir
+            .build();
+            
+            //baglanti hic kurulmazsa kulllanir
+            async function start()
+            {
+                try {
+                    await connection.start();
+                } catch (error) {
+                    setTimeout(() => start(), 2000);
+                }
+            }
+            start();
+            function Animation (){
+                durum.fadeIn(2000, () => {
+                    setTimeout(() => 
+                    {
+                        durum.fadeOut(2000);
+                    }, 2000);
+                })
+            }
+            const durum = $("#durum");
+            connection.onreconnecting(err => {
+                durum.css("background-color", "blue");
+                durum.css("color", "white");
+                durum.html("Baglanti kurulyor..");
+                durum.fadeIn(2000, () => {
+                    setTimeout(() => {durum.fadeOut}, 2000);
+                })
+            });
+            connection.onreconnected(connectionId => {
+                durum.css("background-color", "green");
+                durum.css("color", "white");
+                durum.html("Baglanti kuruldu..");
+                durum.fadeIn(2000, () => {
+                    setTimeout(() => {durum.fadeOut}, 2000);
+                })
+            });
+            connection.onclose(err => {
+                durum.css("background-color", "red");
+                durum.css("color", "white");
+                durum.html("Baglanti yok..");
+                Animation();
+            });
+            
+            // connection.on("userJoined", connectionId => {
+            //     durum.html(`${connectionId} baglandi...`);
+            //     durum.css("background-color", "green");
+            //     Animation();
+            // });
+            // connection.on("userLeave", connectionId => {
+            //     durum.html(`${connectionId} baglantisi kesildi...`);
+            //     durum.css("background-color", "red");
+            //     Animation();
+            // });
+            // connection.on("clients", clientsData => {
+            //     let text = "";
+            //     $.each(clientsData, (index,item) => {
+            //         text += `<li> ${item} </li>`
+            //     });
+            //     $("#clients").append(text);
+            // });
+
+            $("#btnGonder").click(() => {
+                let msg = $("#txtMsg").val();
+                let connectionIds =  $("#connectionIds").val().split(",")
+
+                connection.invoke("SendMessageAsync", msg,connectionIds).catch(error => console.log(`Hata bu hocam ${error}`));
+            });
+            connection.on("receiveMessage", (message) => {
+                $("#mesajlar").append(message + "<br>");
+            });
+            connection.on("getConId", connectionId => {
+                $("#conId").html(`Connection id : ${connectionId}`);
+            });
+
+        });
+    </script>
+</head>
+<body>
+    <div style="background-color: black; color: white;" id="conId"></div>
+    <div id="durum" style="display: none;"></div>
+    <br>
+    <input type="text" id="txtMsg">
+    <textarea id="connectionIds" cols="30" rows="10"></textarea>
+    <button id="btnGonder">Gonder</button>
+    <div id="mesajlar"></div>
+    <div>
+        <ul id="clients"></ul>
+    </div>
+</body>
+</html>
